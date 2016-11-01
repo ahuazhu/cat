@@ -2,10 +2,7 @@ package com.dianping.cat.servlet;
 
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 import javax.servlet.Filter;
@@ -199,6 +196,15 @@ public class CatFilter implements Filter {
 					}
 				}
 
+				res.setHeader("_catServerDomain", Cat.getManager().getDomain());
+				res.setHeader("_catServer", NetworkInterfaceManager.INSTANCE.getLocalHostAddress());
+
+				ctx.addProperty(Cat.Context.ROOT, req.getHeader(Cat.Context.ROOT));
+				ctx.addProperty(Cat.Context.PARENT, req.getHeader(Cat.Context.PARENT));
+				ctx.addProperty(Cat.Context.CHILD, req.getHeader(Cat.Context.CHILD));
+				ctx.addProperty("_catCallerDomain", req.getHeader("_catCallerDomain"));
+				ctx.addProperty("_catCallerMethod", req.getHeader("_catCallerMethod"));
+
 				ctx.handle();
 			}
 		},
@@ -308,7 +314,19 @@ public class CatFilter implements Filter {
 			@Override
 			public void handle(Context ctx) throws IOException, ServletException {
 				HttpServletRequest req = ctx.getRequest();
+
+				Transaction callTransaction = null;
+
+				if (ctx.getProperty("_catCallerMethod") != null) {
+					callTransaction = Cat.newTransaction("Service", ctx.getProperty("_catCallerMethod"));
+					Cat.logEvent("Service.client", ctx.getRequest().getRemoteAddr());
+					Cat.logEvent("Service.app", ctx.getProperty("_catCallerDomain"));
+				}
+
+
 				Transaction t = Cat.newTransaction(ctx.getType(), getRequestURI(req));
+
+				Cat.logRemoteCallServer(ctx);
 
 				try {
 					ctx.handle();
@@ -332,15 +350,21 @@ public class CatFilter implements Filter {
 				} finally {
 					customizeUri(t, req);
 					t.complete();
+					if (callTransaction != null) {
+						callTransaction.setStatus(t.getStatus());
+						callTransaction.complete();
+					}
 				}
 			}
 		};
 	}
 
-	protected static class Context {
+	protected static class Context implements Cat.Context{
 		private FilterChain m_chain;
 
 		private List<Handler> m_handlers;
+
+		private Map<String, String> properties = new HashMap<String, String>();
 
 		private int m_index;
 
@@ -431,6 +455,14 @@ public class CatFilter implements Filter {
 
 		public void setType(String type) {
 			m_type = type;
+		}
+
+		public void addProperty(String key, String value) {
+			properties.put(key, value);
+		}
+
+		public String getProperty(String key) {
+			return properties.get(key);
 		}
 	}
 

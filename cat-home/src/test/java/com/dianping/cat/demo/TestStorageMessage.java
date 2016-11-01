@@ -17,7 +17,7 @@ public class TestStorageMessage {
 	public void testCross() throws Exception {
 		String serverIp = "10.10.10.1";
 
-		while (true) {
+		for (int j = 0; j < 100; j++) {
 			for (int i = 0; i < 2; i++) {
 				sendCacheMsg("cache-1", "user-" + i, "get", serverIp + i);
 				sendCacheMsg("cache-1", "user-" + i, "remove", serverIp + i);
@@ -44,13 +44,13 @@ public class TestStorageMessage {
 	}
 
 	private void sendCacheMsg(String name, String domain, String method, String serverIp) throws InterruptedException {
-		Transaction t = Cat.newTransaction("Cache.memcached-" + name, "oUserAuthLevel:" + method);
+		Transaction t = Cat.newTransaction("Cache.redis-" + name, "oUserAuthLevel:" + method);
 
-		Cat.logEvent("Cache.memcached.server", serverIp);
+		Cat.logEvent("Cache.redis.server", serverIp);
 
 		MessageTree tree = Cat.getManager().getThreadLocalMessageTree();
 		((DefaultMessageTree) tree).setDomain(domain);
-		Thread.sleep(500 + new Random().nextInt(1000));
+		Thread.sleep(10 + new Random().nextInt(10));
 		t.setStatus(Transaction.SUCCESS);
 		t.complete();
 	}
@@ -64,7 +64,7 @@ public class TestStorageMessage {
 		MessageTree tree = Cat.getManager().getThreadLocalMessageTree();
 
 		((DefaultMessageTree) tree).setDomain(domain);
-		Thread.sleep(500 + new Random().nextInt(1000));
+		Thread.sleep(50 + new Random().nextInt(10));
 		int nextInt = new Random().nextInt(3);
 
 		if (nextInt % 2 == 0) {
