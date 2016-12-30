@@ -251,37 +251,41 @@ public class StatusInfoCollector extends BaseVisitor {
 
 	@Override
 	public void visitThread(ThreadsInfo thread) {
-		Extension frameworkThread = m_statusInfo.findOrCreateExtension("FrameworkThread");
-		ThreadMXBean bean = ManagementFactory.getThreadMXBean();
 
-		bean.setThreadContentionMonitoringEnabled(true);
+		if (! "true".equalsIgnoreCase(System.getProperty("cat.disableThreadDump"))) {
 
-		ThreadInfo[] threads;
+			Extension frameworkThread = m_statusInfo.findOrCreateExtension("FrameworkThread");
+			ThreadMXBean bean = ManagementFactory.getThreadMXBean();
 
-		if (m_dumpLocked) {
-			threads = bean.dumpAllThreads(true, true);
-		} else {
-			threads = bean.dumpAllThreads(false, false);
+			bean.setThreadContentionMonitoringEnabled(true);
+
+			ThreadInfo[] threads;
+
+			if (m_dumpLocked) {
+				threads = bean.dumpAllThreads(true, true);
+			} else {
+				threads = bean.dumpAllThreads(false, false);
+			}
+
+			thread.setCount(bean.getThreadCount());
+			thread.setDaemonCount(bean.getDaemonThreadCount());
+			thread.setPeekCount(bean.getPeakThreadCount());
+			thread.setTotalStartedCount((int) bean.getTotalStartedThreadCount());
+
+			int jbossThreadsCount = countThreadsByPrefix(threads, "http-", "catalina-exec-");
+			int jettyThreadsCount = countThreadsBySubstring(threads, "@qtp");
+
+			thread.setDump(getThreadDump(threads));
+
+			frameworkThread.findOrCreateExtensionDetail("HttpThread").setValue(jbossThreadsCount + jettyThreadsCount);
+			frameworkThread.findOrCreateExtensionDetail("CatThread").setValue(countThreadsByPrefix(threads, "Cat-"));
+			frameworkThread.findOrCreateExtensionDetail("PigeonThread").setValue(
+					countThreadsByPrefix(threads, "Pigeon-", "DPSF-", "Netty-", "Client-ResponseProcessor"));
+			frameworkThread.findOrCreateExtensionDetail("ActiveThread").setValue(bean.getThreadCount());
+			frameworkThread.findOrCreateExtensionDetail("StartedThread").setValue(bean.getTotalStartedThreadCount());
+
+			m_statusInfo.addExtension(frameworkThread);
 		}
-
-		thread.setCount(bean.getThreadCount());
-		thread.setDaemonCount(bean.getDaemonThreadCount());
-		thread.setPeekCount(bean.getPeakThreadCount());
-		thread.setTotalStartedCount((int) bean.getTotalStartedThreadCount());
-
-		int jbossThreadsCount = countThreadsByPrefix(threads, "http-", "catalina-exec-");
-		int jettyThreadsCount = countThreadsBySubstring(threads, "@qtp");
-
-		thread.setDump(getThreadDump(threads));
-
-		frameworkThread.findOrCreateExtensionDetail("HttpThread").setValue(jbossThreadsCount + jettyThreadsCount);
-		frameworkThread.findOrCreateExtensionDetail("CatThread").setValue(countThreadsByPrefix(threads, "Cat-"));
-		frameworkThread.findOrCreateExtensionDetail("PigeonThread").setValue(
-		      countThreadsByPrefix(threads, "Pigeon-", "DPSF-", "Netty-", "Client-ResponseProcessor"));
-		frameworkThread.findOrCreateExtensionDetail("ActiveThread").setValue(bean.getThreadCount());
-		frameworkThread.findOrCreateExtensionDetail("StartedThread").setValue(bean.getTotalStartedThreadCount());
-
-		m_statusInfo.addExtension(frameworkThread);
 	}
 
 }

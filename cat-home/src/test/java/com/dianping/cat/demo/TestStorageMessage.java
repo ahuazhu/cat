@@ -17,7 +17,7 @@ public class TestStorageMessage {
 	public void testCross() throws Exception {
 		String serverIp = "10.10.10.1";
 
-		for (int j = 0; j < 100; j++) {
+		for (int j = 0; j < 1000000; j++) {
 			for (int i = 0; i < 2; i++) {
 				sendCacheMsg("cache-1", "user-" + i, "get", serverIp + i);
 				sendCacheMsg("cache-1", "user-" + i, "remove", serverIp + i);
@@ -33,13 +33,13 @@ public class TestStorageMessage {
 				sendCacheMsg("cache-2", "user-" + i, "add", serverIp + i);
 				sendCacheMsg("cache-2", "user-" + i, "remove", serverIp + i);
 				sendCacheMsg("cache-2", "user-" + i, "mGet", serverIp + i);
-
+//
 				sendSQLMsg("sql-2", "user-" + i, "select", serverIp + i);
 				sendSQLMsg("sql-2", "user-" + i, "update", serverIp + i);
 				sendSQLMsg("sql-2", "user-" + i, "delete", serverIp + i);
 				sendSQLMsg("sql-2", "user-" + i, "insert", serverIp + i);
 			}
-			Thread.sleep(5);
+//			Thread.sleep(5);
 		}
 	}
 
@@ -50,8 +50,13 @@ public class TestStorageMessage {
 
 		MessageTree tree = Cat.getManager().getThreadLocalMessageTree();
 		((DefaultMessageTree) tree).setDomain(domain);
-		Thread.sleep(10 + new Random().nextInt(10));
-		t.setStatus(Transaction.SUCCESS);
+		Thread.sleep(5 + new Random().nextInt(10));
+		int nextInt = new Random().nextInt(3);
+		if (nextInt % 2 == 0) {
+			t.setStatus(Transaction.SUCCESS);
+		} else {
+			t.setStatus(String.valueOf(nextInt));
+		}
 		t.complete();
 	}
 
@@ -64,10 +69,10 @@ public class TestStorageMessage {
 		MessageTree tree = Cat.getManager().getThreadLocalMessageTree();
 
 		((DefaultMessageTree) tree).setDomain(domain);
-		Thread.sleep(50 + new Random().nextInt(10));
-		int nextInt = new Random().nextInt(3);
+		Thread.sleep(3 + new Random().nextInt(2));
+		int nextInt = new Random().nextInt(5);
 
-		if (nextInt % 2 == 0) {
+		if (nextInt % 5 == 0) {
 			t.setStatus(Transaction.SUCCESS);
 		} else {
 			t.setStatus(String.valueOf(nextInt));
