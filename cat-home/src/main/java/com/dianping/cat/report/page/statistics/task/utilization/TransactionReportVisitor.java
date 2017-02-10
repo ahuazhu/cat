@@ -25,6 +25,7 @@ public class TransactionReportVisitor extends BaseVisitor {
 	private Set<String> m_types = new HashSet<String>();
 
 	private static final String MEMCACHED = "Cache.memcached";
+	private static final String REDIS = "Cache.redis";
 
 	private Map<Integer, Long> m_counts = new HashMap<Integer, Long>();
 
@@ -36,6 +37,7 @@ public class TransactionReportVisitor extends BaseVisitor {
 		m_types.add("PigeonCall");
 		m_types.add("SQL");
 		m_types.add(MEMCACHED);
+		m_types.add(REDIS);
 	}
 
 	private void copyAttribute(TransactionType type, ApplicationState state) {

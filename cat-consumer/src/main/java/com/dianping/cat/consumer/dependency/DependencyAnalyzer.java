@@ -104,7 +104,7 @@ public class DependencyAnalyzer extends AbstractMessageAnalyzer<DependencyReport
 
 		for (Message message : messages) {
 			if (message instanceof Event) {
-				if (message.getType().equals("PigeonCall.app")) {
+				if (message.getType().equals("PigeonCall.app") || message.getType().equals("Call.app")) {
 					return message.getName();
 				}
 			}

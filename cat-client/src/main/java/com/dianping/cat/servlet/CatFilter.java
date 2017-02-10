@@ -1,28 +1,24 @@
 package com.dianping.cat.servlet;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.unidal.helper.Joiners;
-import org.unidal.helper.Joiners.IBuilder;
-
 import com.dianping.cat.Cat;
 import com.dianping.cat.CatConstants;
+import com.dianping.cat.configuration.NetworkInterfaceManager;
 import com.dianping.cat.configuration.client.entity.Server;
 import com.dianping.cat.message.Message;
 import com.dianping.cat.message.Transaction;
 import com.dianping.cat.message.internal.DefaultMessageManager;
 import com.dianping.cat.message.internal.DefaultTransaction;
+import org.unidal.helper.Joiners;
+import org.unidal.helper.Joiners.IBuilder;
+
+import javax.servlet.*;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class CatFilter implements Filter {
 
@@ -116,6 +112,16 @@ public class CatFilter implements Filter {
 					res.setHeader("X-CAT-ROOT-ID", id);
 					res.setHeader("X-CAT-SERVER", getCatServer());
 				}
+
+				res.setHeader("_catServerDomain", Cat.getManager().getDomain());
+				res.setHeader("_catServer", NetworkInterfaceManager.INSTANCE.getLocalHostAddress());
+
+				HttpServletRequest req = ctx.getRequest();
+				ctx.addProperty(Cat.Context.ROOT, req.getHeader(Cat.Context.ROOT));
+				ctx.addProperty(Cat.Context.PARENT, req.getHeader(Cat.Context.PARENT));
+				ctx.addProperty(Cat.Context.CHILD, req.getHeader(Cat.Context.CHILD));
+				ctx.addProperty("_catCallerDomain", req.getHeader("_catCallerDomain"));
+				ctx.addProperty("_catCallerMethod", req.getHeader("_catCallerMethod"));
 
 				ctx.handle();
 			}
@@ -260,7 +266,19 @@ public class CatFilter implements Filter {
 			@Override
 			public void handle(Context ctx) throws IOException, ServletException {
 				HttpServletRequest req = ctx.getRequest();
+
+				Transaction callTransaction = null;
+
+				if (ctx.getProperty("_catCallerMethod") != null) {
+					callTransaction = Cat.newTransaction("Service", ctx.getProperty("_catCallerMethod"));
+					Cat.logEvent("Service.client", ctx.getRequest().getRemoteAddr());
+					Cat.logEvent("Service.app", ctx.getProperty("_catCallerDomain"));
+				}
+
+
 				Transaction t = Cat.newTransaction(ctx.getType(), getRequestURI(req));
+
+				Cat.logRemoteCallServer(ctx);
 
 				try {
 					ctx.handle();
@@ -280,6 +298,10 @@ public class CatFilter implements Filter {
 				} finally {
 					customizeUri(t, req);
 					t.complete();
+					if (callTransaction != null) {
+						callTransaction.setStatus(t.getStatus());
+						callTransaction.complete();
+					}
 				}
 			}
 
@@ -289,10 +311,12 @@ public class CatFilter implements Filter {
 		};
 	}
 
-	protected static class Context {
+	protected static class Context implements Cat.Context{
 		private FilterChain m_chain;
 
 		private List<Handler> m_handlers;
+
+		private Map<String, String> properties = new HashMap<String, String>();
 
 		private int m_index;
 
@@ -343,6 +367,14 @@ public class CatFilter implements Filter {
 
 		public void setType(String type) {
 			m_type = type;
+		}
+
+		public void addProperty(String key, String value) {
+			properties.put(key, value);
+		}
+
+		public String getProperty(String key) {
+			return properties.get(key);
 		}
 	}
 
